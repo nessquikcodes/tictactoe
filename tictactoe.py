@@ -57,7 +57,7 @@ class TicTacToe:
                     focusthickness=0,
                     borderless=1,
                     state='normal',
-                    command=lambda row=i, col=j: self._handle_click(row, col)
+                    command=lambda row=i, col=j: self._get_player_move(row, col)
                 )
                 button.grid(row=i, column=j, padx=3, pady=3)
                 row.append(button)
@@ -78,37 +78,80 @@ class TicTacToe:
         )
         reset_btn.pack(pady=[20, 5], fill='y', expand=0)
         
-    def _handle_click(self, row: int, col:int):
-        """ Handles the players move """
-        if self.board[row][col] == ' ':
-            self.board[row][col] = self.current_player
-            self.buttons[row][col].config(state=DISABLED, text=self.current_player, disabledforeground=self.COLORS['text'], disabledbackground=self.COLORS['bg'])
+    def _get_random_ai_move(self):
+        """ Creates a tuple of the remaining empty spaces on the board and selects one at random """
+        empty_spaces = [(row, col) for row in range(3) for col in range(3) if self.board[row][col] == ' ']
+        return random.choice(empty_spaces)
+        
+    def _find_winning_move(self, player:str):
+        """ Checks if the next placement will result in a win """
+        for row in range(3):
+            for col in range(3):
+                if self.board[row][col] == ' ': 
+                    # Temporarily place current player's symbol on board
+                    self.board[row][col] = player
+                    # If True, return the winning coordinates
+                    if self._check_winner(row, col, player):
+                        # Undo the move
+                        self.board[row][col] = ' '
+                        return (row, col)
+                    self.board[row][col] = ' '
+        return None
+    
+    def _get_smart_ai_move(self):
+        """ Checks if AI can win with next move or needs to block. Otherwise, plays randomly """
+        # Checks for a winning move for the AI
+        winning_move = self._find_winning_move('O')
+        if winning_move:
+            return winning_move
+        
+        # Checks if AI needs to block the players move
+        blocking_move = self._find_winning_move('X')
+        if blocking_move:
+            return blocking_move
+        
+        # Plays randomly
+        return self._get_random_ai_move()        
+    
+    def _get_player_move(self, row: int, col:int):
+        if self.current_player == 'X' and self.board[row][col] == ' ':
+            """ Handles the players move """
+            self._update_board(row, col)        
+        self._get_ai_move()
+            
+    def _get_ai_move(self):  
+        # Gets AI's next move and updates board
+        (row, col) = self._get_smart_ai_move()
+        self._update_board(row, col)
+        
+    def _update_board(self, row: int, col: int):
+        self.board[row][col] = self.current_player
+        self.buttons[row][col].config(state=DISABLED, text=self.current_player, disabledforeground=self.COLORS['text'], disabledbackground=self.COLORS['bg'])
 
-            if self._check_winner(row, col):
-                self._highlight_winner()
-                messagebox.showinfo('Game Over', f'Player {self.current_player} wins!')
-                self.end_game()
-            elif self._is_board_full():
-                messagebox.showinfo('Game Over', 'It\'s a tie!')
-            else:
-                self.current_player = 'O' if self.current_player == 'X' else 'X'
-                self.status_label.config(text=f'Player {self.current_player}\'s turn') 
+        if self._check_winner(row, col, self.current_player):
+            self._highlight_winner()
+            messagebox.showinfo('Game Over', f'Player {self.current_player} wins!')
+            self.end_game()
+        elif self._is_board_full():
+            messagebox.showinfo('Game Over', 'It\'s a tie!')
+        self.current_player = 'O' if self.current_player == 'X' else 'X' 
+        self.status_label.config(text=f'Player {self.current_player}\'s turn')
 
-    def _check_winner(self, row:int, col:int):
-        """ Check if current player has won. """
+    def _check_winner(self, row:int, col:int, player: str):
+        """ Check if player has won. """
         # Check rows
-        if all(self.board[row][i] == self.current_player for i in range(3)):
+        if all(self.board[row][i] == player for i in range(3)):
             return True
     
         # Check columns
-        if all(self.board[i][col] == self.current_player for i in range(3)):
+        if all(self.board[i][col] == player for i in range(3)):
             return True
     
         # Check diagonals
-        if row == col and all(self.board[i][i] == self.current_player for i in range(3)):
+        if row == col and all(self.board[i][i] == player for i in range(3)):
             return True
     
-        elif row + col == 2 and all(self.board[i][2-i] == self.current_player for i in range(3)):
+        elif row + col == 2 and all(self.board[i][2-i] == player for i in range(3)):
             return True
         else:
             return False
